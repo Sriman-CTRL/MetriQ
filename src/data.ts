@@ -1,4 +1,4 @@
-export type Role = 'owner' | 'office' | 'field' | 'admin'
+export type Role = 'owner' | 'office' | 'field' | 'inspection' | 'admin'
 export type ApplicationStatus = 'Submitted' | 'Under Scrutiny' | 'Assigned' | 'Scheduled' | 'Field Verification' | 'Certificate Issued'
 
 export type Instrument = { id: string; type: string; manufacturer: string; model: string; serial: string; capacity: string; owner: string; location: string; certificate: string; status: 'Verified' | 'Expired' | 'Pending' | 'Flagged'; expiry: string }

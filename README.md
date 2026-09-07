@@ -13,7 +13,7 @@ Build production assets with `npm run build`.
 
 ## Demo accounts
 
-Use **Demo Login** in the header to choose an Instrument Owner, Back Office Officer, Legal Metrology Officer, or System Administrator. The role-aware dashboards are protected in the client prototype.
+Use **Demo Login** in the header to choose a Citizen / Instrument Owner, Back Office Officer, LMO Officer, Inspection Officer, or State Administrator. The role-aware dashboards are protected in the client prototype.
 
 ## Judge flow
 
@@ -25,6 +25,7 @@ Use **Demo Login** in the header to choose an Instrument Owner, Back Office Offi
 6. Save the field verification locally, complete the verification, and open the generated certificate.
 7. Verify the certificate at `/verify/LM-HYD-2026-000184`.
 8. In OCR Recognition, change the detected serial to `EWS300-98299` to show the mismatch scenario.
+9. Switch to Inspection Officer to compare baseline versus current physical evidence, then create a re-verification flag.
 
 ## Architecture
 
@@ -38,7 +39,7 @@ flowchart LR
   QR --> Registry[Instrument registry]
 ```
 
-The prototype uses React, TypeScript, Vite, React Router, Lucide icons, Recharts, `qrcode.react`, Web Crypto, a service worker, localStorage, and IndexedDB. IndexedDB stores offline task and verification queue items; the **Sync Now** action clears the queue after simulated registry synchronization.
+The prototype uses React, TypeScript, Vite, React Router, Lucide icons, Recharts, `qrcode.react`, Web Crypto, a service worker, localStorage, and IndexedDB. It includes an English/Hindi/Telugu UI selector, high-contrast toggle, keyboard skip link, and persistent offline queue. IndexedDB stores offline task and verification queue items; the **Sync Now** action clears the queue after simulated registry synchronization.
 
 OCR is designed as a browser-side OCR workflow with Tesseract.js included as a dependency. The presentation demo keeps a deterministic OCR result so it remains reliable without a long language-model download. QR codes are real SVG QR encodings of the public certificate URL.
 
