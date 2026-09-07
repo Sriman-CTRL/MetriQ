@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: metriq-mongodb
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_DATABASE: metriq
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - metriq-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metriq-backend
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGO_URI=mongodb://mongodb:27017/metriq
+      - JWT_SECRET=${JWT_SECRET:-metriq_super_secret_jwt_key_sih2026}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - metriq-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  metriq-network:
+    driver: bridge

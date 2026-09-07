@@ -1,0 +1,6 @@
+{
+  "name": "METRIQ",
+  "description": "National Digital Legal Metrology Platform for Weights & Measures verification, security seal ledger, manufacturer licensing, treasury e-Challans, and automated statutory notices",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

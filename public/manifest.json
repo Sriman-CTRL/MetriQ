@@ -1,0 +1,17 @@
+{
+  "short_name": "METRIQ",
+  "name": "METRIQ - National Digital Legal Metrology Platform",
+  "description": "Statutory online verification & security seal platform for weighing and measuring instruments under Legal Metrology Act, 2009",
+  "start_url": "/",
+  "background_color": "#073b69",
+  "theme_color": "#073b69",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
