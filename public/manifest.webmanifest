@@ -1,0 +1,8 @@
+{
+  "name": "METRIQ - Legal Metrology Verification",
+  "short_name": "METRIQ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f9",
+  "theme_color": "#073b69"
+}
