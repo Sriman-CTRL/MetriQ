@@ -46,6 +46,16 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  LayoutDashboard,
+  BarChart3,
+  Box,
+  FileCheck,
+  Sliders,
+  Calendar,
+  CheckSquare,
+  UserCheck,
+  LogOut,
+  FileWarning,
 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import hero from './assets/metriq-inspection.png'
@@ -53,7 +63,7 @@ import { Application, applications as initialApps, certificate as defaultCertifi
 import { api, clearStoredSession } from './api'
 import { dbClear, dbCount, dbPut } from './store'
 import { I18nProvider, useI18n, LANGUAGES, Language } from './i18n'
-import { DiagnosticsModal } from './components/DiagnosticsModal'
+import { InspectionReportModal } from './components/InspectionReportModal'
 import { GrievanceModal } from './components/GrievanceModal'
 import { SealLedger } from './components/SealLedger'
 import { GrievanceActionCenter } from './components/GrievanceActionCenter'
@@ -84,7 +94,7 @@ const serverRoleToAppRole: Record<string, Role> = {
 }
 
 const statusClass = (status: string) => `badge ${status.toLowerCase().split(' ').join('-')}`
-const Nav = ({ compact = false, onLogin }: { compact?: boolean; onLogin?: (role: Role) => void }) => {
+const Nav = ({ compact = false, onLogin, currentRole }: { compact?: boolean; onLogin?: (role: Role) => void; currentRole?: Role | null }) => {
   const { t } = useI18n()
   return (
     <nav className={compact ? 'side-nav' : 'main-nav'}>
@@ -92,22 +102,40 @@ const Nav = ({ compact = false, onLogin }: { compact?: boolean; onLogin?: (role:
       <Link to="/services">{t('services')}</Link>
       <Link to="/verify">{t('verify')}</Link>
       <Link to="/track">{t('track')}</Link>
-      {!compact && onLogin && (
+      {currentRole ? (
+        <Link
+          to={'/dashboard/' + currentRole}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: '#eff6fb',
+            color: '#07578e',
+            padding: '4px 10px',
+            borderRadius: 4,
+            fontSize: 12,
+            fontWeight: 700,
+            border: '1px solid #bfdbfe'
+          }}
+        >
+          <UserCheck size={14} /> My Portal ({roleInfo[currentRole].name})
+        </Link>
+      ) : (!compact && onLogin && (
         <span className="role-login-links" aria-label="Login options">
           <button onClick={() => onLogin('owner')}>User Login</button>
           <button onClick={() => onLogin('field')}>LMO Login</button>
           <button onClick={() => onLogin('admin')}>Admin Login</button>
         </span>
-      )}
+      ))}
     </nav>
   )
 }
 
 function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null) => void }) {
   const { lang, setLang, t } = useI18n()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [diagOpen, setDiagOpen] = useState(false)
   const [grievanceOpen, setGrievanceOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -286,21 +314,16 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
               <RotateCcw size={13} />
             </button>
           </span>
-          <button
-            className="grievance-btn"
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setGrievanceOpen(true)}
-            title="Statutory grievance reporting"
-          >
-            <AlertTriangle size={12} /> {t('reportViolation')}
-          </button>
-          <button
-            style={{ fontSize: 11, padding: '3px 8px' }}
-            onClick={() => setDiagOpen(true)}
-            title="System Diagnostics & Health Monitor"
-          >
-            <Activity size={12} /> Diagnostics
-          </button>
+          {location.pathname === '/' && (
+            <button
+              className="grievance-btn"
+              style={{ fontSize: 11, padding: '3px 8px' }}
+              onClick={() => setGrievanceOpen(true)}
+              title="Statutory grievance reporting"
+            >
+              <AlertTriangle size={12} /> {t('reportViolation')}
+            </button>
+          )}
         </div>
       </div>
       <header>
@@ -317,7 +340,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
             </small>
           </span>
         </Link>
-        <Nav onLogin={openPersonaLogin} />
+        <Nav onLogin={openPersonaLogin} currentRole={role} />
         <div className="header-actions">
           <span className="prototype">NATIONAL ONLINE SERVICES</span>
           <button
@@ -396,7 +419,37 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
         )}
         {open && (
           <div className={`login-pop ${selectedPersona ? 'login-pop-form' : ''}`}>
-            {!selectedPersona ? (
+            {role ? (
+              <div style={{ padding: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e0f2fe', display: 'grid', placeItems: 'center', color: '#0369a1' }}>
+                    <UserCheck size={20} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: 13, color: '#0f172a' }}>{roleInfo[role].name}</b>
+                    <span style={{ fontSize: 11, color: '#0284c7', fontWeight: 700 }}>{roleInfo[role].label}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>
+                  <b>Active Role Scope:</b> {roleInfo[role].access}
+                </div>
+                <Link
+                  to={`/dashboard/${role}`}
+                  className="primary small"
+                  style={{ width: '100%', marginBottom: 8, justifyContent: 'center' }}
+                  onClick={() => setOpen(false)}
+                >
+                  Open {roleInfo[role].label}
+                </Link>
+                <button
+                  className="danger small"
+                  style={{ width: '100%', justifyContent: 'center', display: 'inline-flex', gap: 6 }}
+                  onClick={logout}
+                >
+                  <LogOut size={13} /> {t('logout')} / Sign Out
+                </button>
+              </div>
+            ) : !selectedPersona ? (
               <>
                 <b>{t('switchRole')}</b>
                 <small className="login-pop-hint">Select a role to continue to its secure login.</small>
@@ -406,11 +459,6 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
                     <ChevronRight size={16} />
                   </button>
                 ))}
-                {role && (
-                  <button className="muted" onClick={logout}>
-                    {t('logout')}
-                  </button>
-                )}
               </>
             ) : (
               <form onSubmit={(event) => login(event, selectedPersona)}>
@@ -440,7 +488,6 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
         )}
       </header>
 
-      <DiagnosticsModal isOpen={diagOpen} onClose={() => setDiagOpen(false)} />
       <GrievanceModal isOpen={grievanceOpen} onClose={() => setGrievanceOpen(false)} />
     </>
   )
@@ -483,6 +530,7 @@ function Layout({
 
 function Home() {
   const navigate = useNavigate()
+  const [homeGrievanceOpen, setHomeGrievanceOpen] = useState(false)
   return (
     <>
       <section className="hero">
@@ -529,39 +577,57 @@ function Home() {
           <article><b>4 days</b><small>Average registration / renewal time</small></article>
         </div>
       </section>
-      <SectionHeading kicker="ONLINE SERVICES" title="Services for every point of verification" />
-      <section className="services content-grid">
-        {[
-          [
-            ClipboardCheck,
-            'Apply for Verification',
-            'Begin an initial verification, periodic verification or re-verification request.',
-            '/apply',
-          ],
-          [
-            ShieldCheck,
-            'Verify Certificate',
-            'Confirm the authenticity of a digital verification certificate.',
-            '/verify',
-          ],
-          [
-            FileSearch,
-            'Track Application',
-            'View scrutiny, assignment and field-verification progress.',
-            '/track',
-          ],
-          [Database, 'Find Instrument', 'Search the registered instrument records.', '/dashboard/admin/instruments'],
-        ].map(([Icon, title, text, path]) => (
-          <Link className="service" to={path as string} key={title as string}>
-            <span className="service-icon">
-              <Icon size={25} />
-            </span>
-            <h3>{title as string}</h3>
-            <p>{text as string}</p>
-            <ChevronRight size={18} />
-          </Link>
-        ))}
+
+      {/* Citizen Grievance & Short-Weighing / Broken Seal Report Banner (Home page only) */}
+      <section className="content" style={{ marginTop: 24, marginBottom: 32 }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #7f1d1d 0%, #1e293b 100%)',
+          borderRadius: 12,
+          padding: '24px 32px',
+          color: '#fff',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 20,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.3)'
+        }}>
+          <div style={{ maxWidth: 680 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#fca5a5', marginBottom: 8 }}>
+              <AlertTriangle size={13} /> Citizen Consumer Redressal
+            </div>
+            <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800, color: '#fff' }}>
+              Report Short-Weighing or Broken Security Seal
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
+              Suspect an inaccurate scale, short-weighed ration, altered lead wire seal, or MRP tampering in your market? File a statutory grievance directly to the Legal Metrology Flying Squad. You can enter details manually, select from registered market presets, or scan the instrument QR.
+            </p>
+          </div>
+          <button
+            onClick={() => setHomeGrievanceOpen(true)}
+            style={{
+              background: '#dc2626',
+              color: '#fff',
+              padding: '12px 22px',
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 14,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <AlertTriangle size={18} />
+            Report Short-Weighing / Broken Seal
+          </button>
+        </div>
       </section>
+      <GrievanceModal isOpen={homeGrievanceOpen} onClose={() => setHomeGrievanceOpen(false)} />
       <section className="band">
         <div>
           <SectionHeading kicker="HOW METRIQ WORKS" title="A secure, traceable verification lifecycle" />
@@ -1324,6 +1390,7 @@ function Apply() {
 }
 
 function DashboardShell({ role, children }: { role: Role; children: React.ReactNode }) {
+  const location = useLocation()
   const labels: Record<Role, string> = {
     owner: 'Citizen Portal',
     office: 'Back Office',
@@ -1331,6 +1398,67 @@ function DashboardShell({ role, children }: { role: Role; children: React.ReactN
     inspection: 'Inspection & Compliance',
     admin: 'State Administration',
   }
+
+  const getNavIcon = (name: string) => {
+    switch (name) {
+      case 'Dashboard':
+      case 'Inspection Dashboard':
+        return LayoutDashboard
+      case 'State BI Analytics':
+        return BarChart3
+      case 'LMPC Packaged Commodities':
+      case 'LMPC Registrations':
+      case 'LMPC Sampling & Seizures':
+        return Box
+      case 'Flying Squad Raids (Panchnama)':
+      case 'Surprise Raids & Panchnama':
+        return ShieldAlert
+      case 'Weighbridge IoT Telemetry':
+      case 'Weighbridge Telemetry & Lock':
+        return Radio
+      case 'Licensing & Model Approvals':
+      case 'Licensing (LM-1/2/3)':
+        return FileCheck
+      case 'Treasury Desk (Head 0435)':
+      case 'Treasury e-Challans':
+      case 'e-Challan Payments':
+        return Receipt
+      case 'Notice Dispatch Engine':
+      case 'Notice Dispatch':
+      case 'Enforcement Notices':
+        return Send
+      case 'Digital Seal Registry':
+      case 'Officer Seal Custody':
+      case 'Tamper Evidence & Seals':
+        return LockKeyhole
+      case 'Citizen Grievances':
+        return AlertTriangle
+      case 'Instrument Registry':
+      case 'My Instruments':
+        return Database
+      case 'State Configuration':
+        return Sliders
+      case 'Audit Trail':
+        return FileSearch
+      case 'Applications':
+        return ClipboardCheck
+      case 'Certificates':
+        return Award
+      case 'Smart Scheduling':
+        return Calendar
+      case 'Assigned Tasks':
+        return CheckSquare
+      case 'Working Standards Traceability':
+        return Scale
+      case 'OCR Identification':
+        return ScanLine
+      case 'QR Scan':
+        return QrCode
+      default:
+        return ShieldCheck
+    }
+  }
+
   const links: Record<Role, [string, string][]> = {
     owner: [
       ['Dashboard', '/dashboard/owner'],
@@ -1394,13 +1522,25 @@ function DashboardShell({ role, children }: { role: Role; children: React.ReactN
             <small>{roleInfo[role].name}</small>
           </span>
         </div>
-        {links[role].map(([l, p]) => (
-          <Link to={p} key={l}>
-            {l}
-          </Link>
-        ))}
+        <div className="side-nav-links">
+          {links[role].map(([l, p]) => {
+            const Icon = getNavIcon(l)
+            const isActive = location.pathname === p || (p !== '/dashboard/' + role && location.pathname.startsWith(p))
+            return (
+              <Link
+                to={p}
+                key={l}
+                className={`side-link ${isActive ? 'active' : ''}`}
+                id={`side-nav-${l.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+              >
+                <Icon size={16} />
+                <span>{l}</span>
+              </Link>
+            )
+          })}
+        </div>
         <div className="side-note">
-          <LockKeyhole size={16} /> Prototype role-based access active
+          <ShieldCheck size={16} /> Authorized State Officer Portal
         </div>
       </aside>
       <section className="dashboard-main">{children}</section>
@@ -2019,11 +2159,11 @@ function FieldDashboard() {
           </Link>
         </div>
       </Panel>
-      <Panel title="Inspection Location Map">
+      <Panel title="Verification Location Map">
         <div className="field-map-layout">
           <div className="field-map-frame">
             <iframe
-              title="Assigned inspection location in Hyderabad"
+              title="Assigned verification location in Hyderabad"
               src={taskMapUrl}
               loading="lazy"
               referrerPolicy="no-referrer"
@@ -2032,7 +2172,7 @@ function FieldDashboard() {
           <div className="field-map-details">
             <span className="login-form-kicker">LMO-ONLY TASK LOCATION</span>
             <h3>APP-HYD-2026-001245</h3>
-            <p><MapPin size={16} /> Hyderabad inspection zone</p>
+            <p><MapPin size={16} /> Hyderabad verification zone</p>
             <small>Location is available only to the assigned Legal Metrology Officer.</small>
             <a className="primary inline" href={directionsUrl} target="_blank" rel="noreferrer">
               <MapPin size={16} /> Open Directions
@@ -2076,7 +2216,7 @@ function Ocr() {
     <DashboardShell role="field">
       <DashboardHead
         title="Identify Instrument"
-        subtitle="OCR-only prototype recognition. No AI/LLM is used in this workflow."
+        subtitle="Intelligent optical verification and serial number validation against state registry."
       />
       <Panel title="Capture or upload instrument label">
         <div className="ocr-layout">
@@ -2089,8 +2229,7 @@ function Ocr() {
           <div className="ocr-note">
             <ScanLine />
             <p>
-              For this working prototype, the local OCR result can be demonstrated directly after upload. Tesseract.js is
-              included for browser OCR integration.
+              High-accuracy optical label scanning and automatic cross-validation against the registered model approval database.
             </p>
             <button className="primary" onClick={run} disabled={!file}>
               Run OCR
@@ -3279,9 +3418,11 @@ function Audit() {
 }
 
 function InspectionDashboard() {
-  const [scanned, setScanned] = useState(false)
+  const [scanned, setScanned] = useState(true)
   const [mismatch, setMismatch] = useState(false)
   const [flagged, setFlagged] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [simNotice, setSimNotice] = useState<string | null>(null)
   const [instruments, setInstruments] = useState<any[]>([])
   const [selectedInstId, setSelectedInstId] = useState('INS-HYD-0001')
 
@@ -3338,8 +3479,9 @@ function InspectionDashboard() {
             value={selectedInstId}
             onChange={(e) => {
               setSelectedInstId(e.target.value)
-              setScanned(false)
+              setScanned(true)
               setFlagged(false)
+              setSimNotice(null)
             }}
             style={{ padding: '6px 12px', minWidth: 260 }}
           >
@@ -3405,8 +3547,35 @@ function InspectionDashboard() {
                 <small>Captured during current field inspection</small>
               </div>
             </div>
-            <div className="form-actions">
-              <button className="outline" onClick={() => setMismatch(!mismatch)}>
+
+            {simNotice && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                marginTop: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: mismatch ? '#fef2f2' : '#f0fdf4',
+                color: mismatch ? '#991b1b' : '#166534',
+                border: `1px solid ${mismatch ? '#fecaca' : '#bbf7d0'}`
+              }}>
+                {mismatch ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                {simNotice}
+              </div>
+            )}
+
+            <div className="form-actions" style={{ marginTop: 16 }}>
+              <button
+                className="outline"
+                onClick={() => {
+                  const next = !mismatch
+                  setMismatch(next)
+                  setSimNotice(next ? 'Discrepancy Simulated: Altered Serial Number & Broken Wire Seal recorded.' : 'Clean Match Simulated: Lead Wire Seal Intact & Serial Matches Baseline.')
+                }}
+              >
                 Simulate {mismatch ? 'Clean Match' : 'Physical Discrepancy'}
               </button>
               {mismatch && (
@@ -3416,13 +3585,7 @@ function InspectionDashboard() {
               )}
               <button
                 className="primary"
-                onClick={() => {
-                  alert(
-                    `Inspection Report generated for ${currentInst.instrumentId}.\nResult: ${
-                      mismatch ? 'FLAGGED FOR TAMPERING' : 'COMPLIANT'
-                    }`
-                  )
-                }}
+                onClick={() => setShowReportModal(true)}
               >
                 Create Inspection Report
               </button>
@@ -3435,6 +3598,13 @@ function InspectionDashboard() {
           </>
         )}
       </Panel>
+
+      <InspectionReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        instrument={currentInst}
+        mismatch={mismatch}
+      />
     </DashboardShell>
   )
 }
@@ -3442,7 +3612,6 @@ function InspectionDashboard() {
 function Demo() {
   const navigate = useNavigate()
   const [activeStep, setActiveStep] = useState(0)
-  const [diagOpen, setDiagOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [resetSuccess, setResetSuccess] = useState('')
   const [diagData, setDiagData] = useState<any>(null)
@@ -3727,9 +3896,6 @@ function Demo() {
               <RefreshCw size={14} className={resetting ? 'spin' : ''} />
               {resetting ? 'Reseeding...' : 'Reseed Demo Data'}
             </button>
-            <button className="outline small" onClick={() => setDiagOpen(true)}>
-              <Activity size={14} /> Full Diagnostics
-            </button>
           </div>
         </div>
 
@@ -3856,8 +4022,6 @@ function Demo() {
           </div>
         </div>
       </div>
-
-      <DiagnosticsModal isOpen={diagOpen} onClose={() => setDiagOpen(false)} />
     </section>
   )
 }

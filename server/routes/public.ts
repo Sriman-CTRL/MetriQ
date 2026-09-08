@@ -265,7 +265,26 @@ publicRouter.get('/diagnostics', async (_req: Request, res: Response): Promise<v
     };
 
     if (isDbConnected) {
-      const [uCount, iCount, aCount, cCount, logCount, sealCount, grvCount, licCount, tacCount, stdCount, chlCount, dspCount] = await Promise.all([
+      const [
+        uCount,
+        iCount,
+        aCount,
+        cCount,
+        logCount,
+        sealCount,
+        grvCount,
+        licCount,
+        tacCount,
+        stdCount,
+        chlCount,
+        dspCount,
+        lmpcCount,
+        sampleCount,
+        raidCount,
+        memoCount,
+        wbCount,
+        wbTxCount,
+      ] = await Promise.all([
         User.countDocuments(),
         Instrument.countDocuments(),
         Application.countDocuments(),
@@ -299,15 +318,13 @@ publicRouter.get('/diagnostics', async (_req: Request, res: Response): Promise<v
         workingStandards: stdCount,
         treasuryChallans: chlCount,
         dispatches: dspCount,
-        lmpcRegistrations: arguments[0] ?? 0, // safe placeholder
+        lmpcRegistrations: lmpcCount,
+        commoditySamples: sampleCount,
+        raids: raidCount,
+        panchnamas: memoCount,
+        weighbridges: wbCount,
+        weighbridgeTransactions: wbTxCount,
       };
-      // Explicitly assign all counts
-      counts.lmpcRegistrations = await LmpcRegistration.countDocuments();
-      counts.commoditySamples = await PackagedCommoditySample.countDocuments();
-      counts.raids = await RaidInspection.countDocuments();
-      counts.panchnamas = await SeizureMemo.countDocuments();
-      counts.weighbridges = await Weighbridge.countDocuments();
-      counts.weighbridgeTransactions = await WeighbridgeTransaction.countDocuments();
     }
 
     // Cryptographic self-check test

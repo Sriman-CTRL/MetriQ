@@ -10,6 +10,9 @@ export async function connectDB(): Promise<void> {
 
   const mongoUri = process.env.MONGO_URI;
 
+  mongoose.set('strictQuery', true);
+  mongoose.set('bufferCommands', false);
+
   if (mongoUri) {
     try {
       console.log(`[Database] Attempting connection to MongoDB at: ${mongoUri.replace(/:([^:@]{4})[^:@]*@/, ':****@')}`);

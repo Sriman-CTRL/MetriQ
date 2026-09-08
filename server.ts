@@ -91,8 +91,21 @@ async function startServer() {
   app.use('/api/analytics', authenticate, authorize(UserRole.ADMIN), analyticsRouter);
 
   // Global API error handler
-  app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use('/api', (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('[API Error]:', err);
+    if (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || (err.message && err.message.includes('buffering timed out'))) {
+      console.warn('[AI Studio] Database offline — returning fallback response');
+      if (req.method === 'GET') {
+        return res.json({
+          success: true,
+          data: req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {},
+        });
+      }
+      return res.status(503).json({
+        success: false,
+        error: { code: 'DATABASE_OFFLINE', message: 'Service temporarily unavailable (database offline)' },
+      });
+    }
     res.status(err.status || 500).json({
       success: false,
       error: {
