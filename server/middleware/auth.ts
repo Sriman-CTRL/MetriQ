@@ -6,7 +6,11 @@ export interface AuthenticatedRequest extends Request {
   user?: IUser;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'metriq_super_secret_jwt_key_sih2026';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'development_only_change_me');
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured before starting METRIQ in production.');
+}
 
 export function signToken(user: IUser): string {
   return jwt.sign(

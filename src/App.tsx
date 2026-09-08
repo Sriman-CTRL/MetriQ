@@ -50,7 +50,7 @@ import {
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import hero from './assets/metriq-inspection.png'
 import { Application, applications as initialApps, certificate as defaultCertificate, Instrument, Role } from './data'
-import { api } from './api'
+import { api, clearStoredSession } from './api'
 import { dbClear, dbCount, dbPut } from './store'
 import { I18nProvider, useI18n, LANGUAGES, Language } from './i18n'
 import { DiagnosticsModal } from './components/DiagnosticsModal'
@@ -67,13 +67,20 @@ import { LmpcComplianceDesk } from './components/LmpcComplianceDesk'
 import { FlyingSquadEnforcement } from './components/FlyingSquadEnforcement'
 import { WeighbridgeIoTDashboard } from './components/WeighbridgeIoTDashboard'
 import './telangana-legal-metrology.css'
+const roleInfo: Record<Role, { label: string; name: string; access: string }> = {
+  owner: { label: 'Instrument Owner / User', name: 'User Login', access: 'Citizen instruments and applications' },
+  office: { label: 'Back Office Officer', name: 'Officer S. Rao', access: 'Application scrutiny and scheduling' },
+  field: { label: 'LMO Officer', name: 'Officer R. Kumar', access: 'Field verification and offline work' },
+  inspection: { label: 'Inspection Officer', name: 'Officer A. Mehta', access: 'Inspection and enforcement' },
+  admin: { label: 'System Administrator', name: 'Telangana Admin', access: 'State administration and reports' },
+}
 
-const roleInfo: Record<Role, { label: string; email: string; name: string }> = {
-  owner: { label: 'Instrument Owner/user', email: 'owner@metriq.demo', name: 'User Login' },
-  office: { label: 'Back Office Officer', email: 'office@metriq.demo', name: 'Officer S. Rao' },
-  field: { label: 'LMO Officer', email: 'lmo@metriq.demo', name: 'Officer R. Kumar' },
-  inspection: { label: 'Inspection Officer', email: 'inspection@metriq.demo', name: 'Officer A. Mehta' },
-  admin: { label: 'system Administrator', email: 'admin@metriq.demo', name: 'Telangana Admin' },
+const serverRoleToAppRole: Record<string, Role> = {
+  OWNER: 'owner',
+  BACK_OFFICE: 'office',
+  LMO: 'field',
+  VERIFICATION_OFFICER: 'inspection',
+  ADMIN: 'admin',
 }
 
 const statusClass = (status: string) => `badge ${status.toLowerCase().split(' ').join('-')}`
@@ -106,6 +113,8 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
   const [unreadCount, setUnreadCount] = useState(0)
   const [contrast, setContrast] = useState(false)
   const [zoom, setZoom] = useState(() => Number(sessionStorage.getItem('metriq-zoom') || 100))
+  const [selectedPersona, setSelectedPersona] = useState<Role | null>(null)
+  const [loginError, setLoginError] = useState('')
   const navigate = useNavigate()
 
   const updateZoom = (nextZoom: number) => {
@@ -181,16 +190,29 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
     }
   }
 
-  const login = async (next: Role) => {
-    try {
-      await api.auth.demoLogin(next)
-    } catch {
-      // Fallback in case of temporary offline
+  const login = async (event: React.FormEvent<HTMLFormElement>, _selectedRole: Role) => {
+    event.preventDefault()
+    setLoginError('')
+    const form = new FormData(event.currentTarget)
+    const email = String(form.get('email') || '').trim()
+    const password = String(form.get('password') || '')
+    const result = await api.auth.login(email, password)
+    const authenticatedRole = result.data?.user?.role ? serverRoleToAppRole[result.data.user.role] : undefined
+    if (!result.success || !authenticatedRole) {
+      setLoginError(result.error?.message || 'Unable to sign in. Please check your details and try again.')
+      return
     }
-    setRole(next)
-    localStorage.setItem('metriq-role', next)
+    // The server is the source of truth: an authenticated account always lands
+    // in its own portal, regardless of the login option selected on the page.
+    setRole(authenticatedRole)
     setOpen(false)
-    navigate(`/dashboard/${next}`)
+    navigate(`/dashboard/${authenticatedRole}`)
+  }
+
+  const openPersonaLogin = (next: Role) => {
+    setSelectedPersona(next)
+    setOpen(true)
+    setNotifOpen(false)
   }
 
   const logout = async () => {
@@ -200,7 +222,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
       // Ignore
     }
     setRole(null)
-    localStorage.removeItem('metriq-role')
+    clearStoredSession()
     setOpen(false)
     navigate('/')
   }
@@ -295,7 +317,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
             </small>
           </span>
         </Link>
-        <Nav onLogin={login} />
+        <Nav onLogin={openPersonaLogin} />
         <div className="header-actions">
           <span className="prototype">NATIONAL ONLINE SERVICES</span>
           <button
@@ -315,6 +337,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
               className="user"
               onClick={() => {
                 setOpen(!open)
+                setSelectedPersona(null)
                 setNotifOpen(false)
               }}
             >
@@ -326,6 +349,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
               className="primary small"
               onClick={() => {
                 setOpen(!open)
+                setSelectedPersona(null)
                 setNotifOpen(false)
               }}
             >
@@ -371,21 +395,46 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
           </div>
         )}
         {open && (
-          <div className="login-pop">
-            <b>{t('switchRole')}</b>
-            {(Object.keys(roleInfo) as Role[]).map((r) => (
-              <button key={r} onClick={() => login(r)}>
-                <span>
-                  {roleInfo[r].label}
-                  <small>{roleInfo[r].email}</small>
-                </span>
-                <ChevronRight size={16} />
-              </button>
-            ))}
-            {role && (
-              <button className="muted" onClick={logout}>
-                {t('logout')}
-              </button>
+          <div className={`login-pop ${selectedPersona ? 'login-pop-form' : ''}`}>
+            {!selectedPersona ? (
+              <>
+                <b>{t('switchRole')}</b>
+                <small className="login-pop-hint">Select a role to continue to its secure login.</small>
+                {(Object.keys(roleInfo) as Role[]).map((r) => (
+                  <button key={r} onClick={() => setSelectedPersona(r)}>
+                    <span>{roleInfo[r].label}</span>
+                    <ChevronRight size={16} />
+                  </button>
+                ))}
+                {role && (
+                  <button className="muted" onClick={logout}>
+                    {t('logout')}
+                  </button>
+                )}
+              </>
+            ) : (
+              <form onSubmit={(event) => login(event, selectedPersona)}>
+                <button type="button" className="login-back" onClick={() => setSelectedPersona(null)}>
+                  <ChevronRight size={15} /> Back to personas
+                </button>
+                <span className="login-form-kicker">ROLE-BASED ACCESS</span>
+                <b>{roleInfo[selectedPersona].label}</b>
+                <small className="login-pop-hint">Sign in to open the {roleInfo[selectedPersona].label} dashboard.</small>
+                <small className="login-access">Access: {roleInfo[selectedPersona].access}</small>
+                <label>
+                  Email address
+                  <input name="email" type="email" placeholder="Enter email address" autoComplete="username" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" placeholder="Enter password" autoComplete="current-password" required />
+                </label>
+                {loginError && <p className="login-error" role="alert">{loginError}</p>}
+                <button type="submit" className="primary login-submit">
+                  Login as {roleInfo[selectedPersona].label}
+                  <ChevronRight size={16} />
+                </button>
+              </form>
             )}
           </div>
         )}
@@ -1289,7 +1338,6 @@ function DashboardShell({ role, children }: { role: Role; children: React.ReactN
       ['Applications', '/dashboard/owner/applications'],
       ['Certificates', '/certificate'],
       ['e-Challan Payments', '/dashboard/owner/treasury'],
-      ['Notices & Alerts', '/dashboard/owner/dispatch'],
     ],
     office: [
       ['Dashboard', '/dashboard/office'],
@@ -1300,7 +1348,6 @@ function DashboardShell({ role, children }: { role: Role; children: React.ReactN
       ['LMPC Registrations', '/dashboard/office/lmpc'],
       ['Treasury e-Challans', '/dashboard/office/treasury'],
       ['Notice Dispatch', '/dashboard/office/dispatch'],
-      ['Weighbridge Telemetry', '/dashboard/office/telemetry'],
       ['Audit Trail', '/dashboard/admin/audit'],
     ],
     field: [
@@ -1872,6 +1919,10 @@ function FieldDashboard() {
   const [offline, setOffline] = useState(false)
   const [pending, setPending] = useState(0)
   const [message, setMessage] = useState('')
+  const taskLatitude = 17.385
+  const taskLongitude = 78.4867
+  const taskMapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${taskLongitude - 0.015}%2C${taskLatitude - 0.01}%2C${taskLongitude + 0.015}%2C${taskLatitude + 0.01}&layer=mapnik&marker=${taskLatitude}%2C${taskLongitude}`
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${taskLatitude}%2C${taskLongitude}`
 
   useEffect(() => {
     dbCount().then(setPending)
@@ -1966,6 +2017,27 @@ function FieldDashboard() {
           <Link className="primary inline" to="/dashboard/field/verify/APP-HYD-2026-001245">
             Start Verification
           </Link>
+        </div>
+      </Panel>
+      <Panel title="Inspection Location Map">
+        <div className="field-map-layout">
+          <div className="field-map-frame">
+            <iframe
+              title="Assigned inspection location in Hyderabad"
+              src={taskMapUrl}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="field-map-details">
+            <span className="login-form-kicker">LMO-ONLY TASK LOCATION</span>
+            <h3>APP-HYD-2026-001245</h3>
+            <p><MapPin size={16} /> Hyderabad inspection zone</p>
+            <small>Location is available only to the assigned Legal Metrology Officer.</small>
+            <a className="primary inline" href={directionsUrl} target="_blank" rel="noreferrer">
+              <MapPin size={16} /> Open Directions
+            </a>
+          </div>
         </div>
       </Panel>
     </DashboardShell>
@@ -3585,12 +3657,6 @@ function Demo() {
   const current = steps[activeStep]
 
   const handleLaunchStep = async (step: typeof current) => {
-    try {
-      await api.auth.demoLogin(step.role)
-      localStorage.setItem('metriq-role', step.role)
-    } catch {
-      // ignore
-    }
     navigate(step.path)
   }
 
@@ -3751,11 +3817,7 @@ function Demo() {
                     key={r}
                     className="outline small"
                     style={{ fontSize: 11 }}
-                    onClick={async () => {
-                      await api.auth.demoLogin(r)
-                      localStorage.setItem('metriq-role', r)
-                      navigate(`/dashboard/${r}`)
-                    }}
+                    onClick={() => navigate(`/dashboard/${r}`)}
                   >
                     {roleInfo[r].label.split(' / ')[0]}
                   </button>
@@ -3814,12 +3876,6 @@ function Services() {
           [Users, 'Business Services', 'Manage registered instruments and re-verification.', '/dashboard/owner'],
           [MapPin, 'Legal Metrology Services', 'Work assigned tasks even with limited connectivity.', '/dashboard/field'],
           [ShieldCheck, 'Public Verification', 'Validate a certificate without login.', '/verify'],
-          [Award, 'Licensing & Model Approvals', 'LM-1/2/3 manufacturer licenses and central TAC registry.', '/licensing'],
-          [Landmark, 'e-Challan Treasury Gateway', 'Pay statutory verification fees directly to Govt Head 0435.', '/treasury'],
-          [Send, 'Statutory Notice Dispatch', 'Automated TRAI DLT expiry warnings and merchant notifications.', '/dispatch'],
-          [Package, 'Packaged Commodities (LMPC)', 'Rule 27 Form-I registrations and Schedule II statistical sampling lab.', '/lmpc'],
-          [ShieldAlert, 'Flying Squad Raids & Seizures', 'Surprise market vigilance, Form 1 digital Panchnamas & compounding.', '/raids'],
-          [Radio, 'Weighbridge IoT Telemetry', 'Real-time Electronic Data Capture (EDC), load-cell monitoring & remote lock.', '/telemetry'],
         ].map(([I, t, x, p]) => (
           <Link className="service" to={p as string} key={t as string}>
             <span className="service-icon">
@@ -3836,9 +3892,20 @@ function Services() {
 }
 
 export function App() {
-  const [role, setRole] = useState<Role | null>(() => localStorage.getItem('metriq-role') as Role | null)
+  const [role, setRole] = useState<Role | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
+
+  useEffect(() => {
+    api.auth.me().then((result) => {
+      const serverRole = result.data?.user?.role
+      const authenticatedRole = serverRole ? serverRoleToAppRole[serverRole] : undefined
+      if (result.success && authenticatedRole) setRole(authenticatedRole)
+      else clearStoredSession()
+    }).finally(() => setSessionReady(true))
+  }, [])
+
   const protectedRoute = (needed: Role, child: React.ReactNode) =>
-    role === needed ? child : <Navigate to="/" replace />
+    !sessionReady ? <div className="page content">Checking secure session…</div> : role === needed ? child : <Navigate to="/" replace />
 
   return (
     <I18nProvider>
@@ -3881,19 +3948,11 @@ export function App() {
             <Route path="/dashboard/admin/raids" element={protectedRoute('admin', <DashboardShell role="admin"><FlyingSquadEnforcement /></DashboardShell>)} />
             <Route path="/dashboard/admin/telemetry" element={protectedRoute('admin', <DashboardShell role="admin"><WeighbridgeIoTDashboard /></DashboardShell>)} />
             <Route path="/dashboard/owner/treasury" element={protectedRoute('owner', <DashboardShell role="owner"><TreasuryChallanDesk /></DashboardShell>)} />
-            <Route path="/dashboard/owner/dispatch" element={protectedRoute('owner', <DashboardShell role="owner"><DispatchSimulator /></DashboardShell>)} />
             <Route path="/dashboard/office/licensing" element={protectedRoute('office', <DashboardShell role="office"><LicensingPortal /></DashboardShell>)} />
             <Route path="/dashboard/office/treasury" element={protectedRoute('office', <DashboardShell role="office"><TreasuryChallanDesk /></DashboardShell>)} />
             <Route path="/dashboard/office/dispatch" element={protectedRoute('office', <DashboardShell role="office"><DispatchSimulator /></DashboardShell>)} />
             <Route path="/dashboard/office/lmpc" element={protectedRoute('office', <DashboardShell role="office"><LmpcComplianceDesk /></DashboardShell>)} />
-            <Route path="/dashboard/office/telemetry" element={protectedRoute('office', <DashboardShell role="office"><WeighbridgeIoTDashboard /></DashboardShell>)} />
             <Route path="/dashboard/field/standards" element={protectedRoute('field', <DashboardShell role="field"><LicensingPortal /></DashboardShell>)} />
-            <Route path="/licensing" element={<DashboardShell role="admin"><LicensingPortal /></DashboardShell>} />
-            <Route path="/treasury" element={<DashboardShell role="admin"><TreasuryChallanDesk /></DashboardShell>} />
-            <Route path="/dispatch" element={<DashboardShell role="admin"><DispatchSimulator /></DashboardShell>} />
-            <Route path="/lmpc" element={<DashboardShell role="admin"><LmpcComplianceDesk /></DashboardShell>} />
-            <Route path="/raids" element={<DashboardShell role="admin"><FlyingSquadEnforcement /></DashboardShell>} />
-            <Route path="/telemetry" element={<DashboardShell role="admin"><WeighbridgeIoTDashboard /></DashboardShell>} />
             <Route path="/dashboard/admin/instruments" element={protectedRoute('admin', <Registry />)} />
             <Route path="/dashboard/admin/config" element={protectedRoute('admin', <Config />)} />
             <Route path="/dashboard/admin/audit" element={protectedRoute('admin', <Audit />)} />

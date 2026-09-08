@@ -24,6 +24,8 @@ import { lmpcRouter } from './server/routes/lmpc';
 import { raidsRouter } from './server/routes/raids';
 import { telemetryRouter } from './server/routes/telemetry';
 import { analyticsRouter } from './server/routes/analytics';
+import { authenticate, authorize } from './server/middleware/auth';
+import { UserRole } from './server/models/User';
 
 async function startServer() {
   const app = express();
@@ -78,15 +80,15 @@ async function startServer() {
   app.use('/api/sync', syncRouter);
   app.use('/api/evidence', evidenceRouter);
   app.use('/api/notifications', notificationsRouter);
-  app.use('/api/seals', sealsRouter);
+  app.use('/api/seals', authenticate, authorize(UserRole.LMO, UserRole.VERIFICATION_OFFICER, UserRole.ADMIN), sealsRouter);
   app.use('/api/grievances', grievancesRouter);
-  app.use('/api/licensing', licensingRouter);
-  app.use('/api/dispatch', dispatchRouter);
-  app.use('/api/treasury', treasuryRouter);
-  app.use('/api/lmpc', lmpcRouter);
-  app.use('/api/raids', raidsRouter);
-  app.use('/api/telemetry', telemetryRouter);
-  app.use('/api/analytics', analyticsRouter);
+  app.use('/api/licensing', authenticate, authorize(UserRole.ADMIN, UserRole.BACK_OFFICE, UserRole.LMO), licensingRouter);
+  app.use('/api/dispatch', authenticate, authorize(UserRole.ADMIN, UserRole.BACK_OFFICE), dispatchRouter);
+  app.use('/api/treasury', authenticate, authorize(UserRole.ADMIN, UserRole.BACK_OFFICE, UserRole.OWNER), treasuryRouter);
+  app.use('/api/lmpc', authenticate, authorize(UserRole.ADMIN, UserRole.BACK_OFFICE, UserRole.VERIFICATION_OFFICER), lmpcRouter);
+  app.use('/api/raids', authenticate, authorize(UserRole.ADMIN, UserRole.VERIFICATION_OFFICER), raidsRouter);
+  app.use('/api/telemetry', authenticate, authorize(UserRole.LMO, UserRole.VERIFICATION_OFFICER, UserRole.ADMIN), telemetryRouter);
+  app.use('/api/analytics', authenticate, authorize(UserRole.ADMIN), analyticsRouter);
 
   // Global API error handler
   app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

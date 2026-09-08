@@ -18,10 +18,25 @@ export interface ApiResponse<T> {
 
 // Token management
 const TOKEN_KEY = 'metriq-jwt-token';
+const USER_KEY = 'metriq-session-user';
 export const getStoredToken = (): string | null => localStorage.getItem(TOKEN_KEY);
 export const setStoredToken = (token: string | null) => {
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
+};
+export const getStoredUser = (): any | null => {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+};
+export const clearStoredSession = () => {
+  setStoredToken(null);
+  localStorage.removeItem(USER_KEY);
 };
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -55,15 +70,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   }
 }
 
-// Demo account credentials mapping
-export const DEMO_CREDENTIALS: Record<string, { email: string; pass: string }> = {
-  admin: { email: 'admin@metriq.demo', pass: 'Password123!' },
-  office: { email: 'office@metriq.demo', pass: 'Password123!' },
-  field: { email: 'lmo@metriq.demo', pass: 'Password123!' },
-  inspection: { email: 'inspection@metriq.demo', pass: 'Password123!' },
-  owner: { email: 'owner@metriq.demo', pass: 'Password123!' },
-};
-
 export const api = {
   auth: {
     login: async (email: string, password = 'Password123!') => {
@@ -73,17 +79,14 @@ export const api = {
       });
       if (res.success && res.data?.token) {
         setStoredToken(res.data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
       }
       return res;
-    },
-    demoLogin: async (role: string) => {
-      const creds = DEMO_CREDENTIALS[role] || DEMO_CREDENTIALS['owner'];
-      return api.auth.login(creds.email, creds.pass);
     },
     me: async () => apiFetch<{ user: any }>('/auth/me'),
     logout: async () => {
       await apiFetch('/auth/logout', { method: 'POST' });
-      setStoredToken(null);
+      clearStoredSession();
     },
   },
 

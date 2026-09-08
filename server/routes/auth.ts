@@ -28,11 +28,9 @@ authRouter.post('/register', async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
-    // Default to OWNER unless registered by an ADMIN
-    let assignedRole = UserRole.OWNER;
-    if (role && Object.values(UserRole).includes(role)) {
-      assignedRole = role as UserRole;
-    }
+    // Public registration creates citizen accounts only. Officer and administrator
+    // accounts must be provisioned by a separate, authenticated admin workflow.
+    const assignedRole = UserRole.OWNER;
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
