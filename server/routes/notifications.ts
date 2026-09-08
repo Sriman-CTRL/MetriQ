@@ -46,7 +46,7 @@ notificationsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res
           {
             user: userId,
             title: 'New Verification Task Assigned',
-            message: 'You have been assigned to verify Electronic Weighing Instrument at Demo Retail Enterprises.',
+            message: 'You have been assigned to verify Electronic Weighing Instrument at User Login.',
             link: '/dashboard/field/verify/APP-HYD-2026-001245',
             read: false,
           },
@@ -63,7 +63,7 @@ notificationsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res
           {
             user: userId,
             title: 'New Scrutiny Request',
-            message: 'Application APP-HYD-2026-001245 submitted by Demo Retail Enterprises is pending scrutiny.',
+            message: 'Application APP-HYD-2026-001245 submitted by User Login is pending scrutiny.',
             link: '/dashboard/office',
             read: false,
           },

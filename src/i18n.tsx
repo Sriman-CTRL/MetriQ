@@ -25,7 +25,6 @@ export const translations: Record<Language, Record<string, string>> = {
     track: 'Track Status',
     apply: 'Apply Online',
     services: 'Services',
-    demo: 'Judge Showcase',
     dashboard: 'Dashboard',
     logout: 'Logout',
     switchRole: 'Switch Persona',

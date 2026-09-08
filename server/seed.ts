@@ -151,7 +151,7 @@ export async function seedDatabase(force = false): Promise<void> {
     role: UserRole.OWNER,
     state: 'Telangana',
     district: 'Hyderabad',
-    businessName: 'Demo Retail Enterprises',
+    businessName: 'User Login',
     isActive: true,
   });
 

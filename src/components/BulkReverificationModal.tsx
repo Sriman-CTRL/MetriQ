@@ -70,8 +70,8 @@ export function BulkReverificationModal({ instruments, isOpen, onClose, onSucces
       // Submit application for the selected instruments
       const firstInst = instruments.find((i) => (i.id || i.instrumentId) === selectedIds[0]);
       await api.applications.create({
-        applicantName: firstInst?.owner || 'Demo Retail Enterprises',
-        businessName: firstInst?.owner || 'Demo Retail Enterprises',
+        applicantName: firstInst?.owner || 'User Login',
+        businessName: firstInst?.owner || 'User Login',
         mobile: '98480 99999',
         email: 'owner@metriq.demo',
         verificationType: 'PERIODIC_REVERIFICATION',

@@ -43,6 +43,9 @@ import {
   Package,
   ShieldAlert,
   Radio,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import hero from './assets/metriq-inspection.png'
@@ -63,17 +66,18 @@ import { DigitalSignatureModal } from './components/DigitalSignatureModal'
 import { LmpcComplianceDesk } from './components/LmpcComplianceDesk'
 import { FlyingSquadEnforcement } from './components/FlyingSquadEnforcement'
 import { WeighbridgeIoTDashboard } from './components/WeighbridgeIoTDashboard'
+import './telangana-legal-metrology.css'
 
 const roleInfo: Record<Role, { label: string; email: string; name: string }> = {
-  owner: { label: 'Citizen / Instrument Owner', email: 'owner@metriq.demo', name: 'Demo Retail Enterprises' },
+  owner: { label: 'Instrument Owner/user', email: 'owner@metriq.demo', name: 'User Login' },
   office: { label: 'Back Office Officer', email: 'office@metriq.demo', name: 'Officer S. Rao' },
   field: { label: 'LMO Officer', email: 'lmo@metriq.demo', name: 'Officer R. Kumar' },
   inspection: { label: 'Inspection Officer', email: 'inspection@metriq.demo', name: 'Officer A. Mehta' },
-  admin: { label: 'State Administrator', email: 'admin@metriq.demo', name: 'Telangana Admin' },
+  admin: { label: 'system Administrator', email: 'admin@metriq.demo', name: 'Telangana Admin' },
 }
 
 const statusClass = (status: string) => `badge ${status.toLowerCase().split(' ').join('-')}`
-const Nav = ({ compact = false }: { compact?: boolean }) => {
+const Nav = ({ compact = false, onLogin }: { compact?: boolean; onLogin?: (role: Role) => void }) => {
   const { t } = useI18n()
   return (
     <nav className={compact ? 'side-nav' : 'main-nav'}>
@@ -81,7 +85,13 @@ const Nav = ({ compact = false }: { compact?: boolean }) => {
       <Link to="/services">{t('services')}</Link>
       <Link to="/verify">{t('verify')}</Link>
       <Link to="/track">{t('track')}</Link>
-      <Link to="/demo">{t('demo')}</Link>
+      {!compact && onLogin && (
+        <span className="role-login-links" aria-label="Login options">
+          <button onClick={() => onLogin('owner')}>User Login</button>
+          <button onClick={() => onLogin('field')}>LMO Login</button>
+          <button onClick={() => onLogin('admin')}>Admin Login</button>
+        </span>
+      )}
     </nav>
   )
 }
@@ -95,7 +105,22 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [contrast, setContrast] = useState(false)
+  const [zoom, setZoom] = useState(() => Number(sessionStorage.getItem('metriq-zoom') || 100))
   const navigate = useNavigate()
+
+  const updateZoom = (nextZoom: number) => {
+    const boundedZoom = Math.min(130, Math.max(90, nextZoom))
+    setZoom(boundedZoom)
+    sessionStorage.setItem('metriq-zoom', String(boundedZoom))
+    document.documentElement.style.zoom = `${boundedZoom}%`
+  }
+
+  useEffect(() => {
+    document.documentElement.style.zoom = `${zoom}%`
+    return () => {
+      document.documentElement.style.zoom = '100%'
+    }
+  }, [zoom])
 
   useEffect(() => {
     const loadNotifs = async () => {
@@ -187,7 +212,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
       </a>
       <div className="govbar">
         <div>
-          GOVERNMENT OF INDIA <span> | </span> MINISTRY OF CONSUMER AFFAIRS <span> | </span> DEPARTMENT OF LEGAL METROLOGY
+          GOVERNMENT OF INDIA <span> | </span> DEPARTMENT OF LEGAL METROLOGY
         </div>
         <div className="govtools">
           <select
@@ -210,6 +235,35 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
           >
             High contrast
           </button>
+          <span className="accessibility-controls" aria-label="Page zoom controls">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              title="Zoom out"
+              onClick={() => updateZoom(zoom - 10)}
+              disabled={zoom <= 90}
+            >
+              <ZoomOut size={14} />
+            </button>
+            <span aria-live="polite">{zoom}%</span>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              onClick={() => updateZoom(zoom + 10)}
+              disabled={zoom >= 130}
+            >
+              <ZoomIn size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label="Reset page zoom"
+              title="Reset page zoom"
+              onClick={() => updateZoom(100)}
+            >
+              <RotateCcw size={13} />
+            </button>
+          </span>
           <button
             className="grievance-btn"
             style={{ fontSize: 11, padding: '3px 8px' }}
@@ -229,21 +283,21 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
       </div>
       <header>
         <Link className="brand" to="/">
-          <span className="mark">
-            <ShieldCheck size={29} />
+          <span className="mark national-emblem" title="National Emblem of India">
+            <Landmark size={29} />
           </span>
           <span>
-            <b>METRIQ</b>
+            <b>Department of Legal Metrology</b>
             <small>
-              National Digital Legal Metrology Platform
+              Government of India
               <br />
-              Weights &amp; Measures
+              Online Legal Metrology Services
             </small>
           </span>
         </Link>
-        <Nav />
+        <Nav onLogin={login} />
         <div className="header-actions">
-          <span className="prototype">SIH 2026 PROTOTYPE</span>
+          <span className="prototype">NATIONAL ONLINE SERVICES</span>
           <button
             className="notif-bell-btn"
             title="Notifications & Alerts"
@@ -275,7 +329,7 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
                 setNotifOpen(false)
               }}
             >
-              Demo Login
+              Login Options
             </button>
           )}
         </div>
@@ -356,24 +410,23 @@ function Layout({
     <>
       <Header role={role} setRole={setRole} />
       <main id="main-content">{children}</main>
-      <footer>
-        <div>
-          <b>METRIQ</b>
-          <p>
-            Prototype developed for Smart India Hackathon 2026. This interface is a demonstration and is not an official
-            Government of India service.
-          </p>
+      <footer className="telangana-footer">
+        <div className="footer-content">
+          <div>
+            <b>Department of Legal Metrology</b>
+            <p>Government of Telangana</p>
+            <p>Ensuring accurate measures, fair trade and consumer protection through accessible digital services.</p>
+          </div>
+          <div>
+            <b>Site Map</b>
+            <span><Link to="/">Home</Link><Link to="/services">Online Services</Link><Link to="/track">Track Application</Link><Link to="/verify">Certificate Verification</Link></span>
+          </div>
+          <div>
+            <b>Reach Us</b>
+            <span>Controller of Legal Metrology,<br />209 PWD Building, Gandhinagar,<br />Hyderabad – 500 080, Telangana.<br /><a href="mailto:clm-ts@nic.in">clm-ts@nic.in</a><br />Off: 040 2761 3667</span>
+          </div>
         </div>
-        <div>
-          Important Links
-          <br />
-          <span>Privacy Policy &nbsp; Accessibility &nbsp; Contact</span>
-        </div>
-        <div>
-          VISHWAKARMA
-          <br />
-          <span>Problem Statement ID: 26036</span>
-        </div>
+        <div className="footer-copyright">Copyright © 2026. All Rights Reserved. Department of Legal Metrology, Government of Telangana.</div>
       </footer>
     </>
   )
@@ -414,9 +467,18 @@ function Home() {
         <span>
           <b>Prototype developed for Smart India Hackathon 2026</b> &nbsp; Problem Statement ID: 26036
         </span>
-        <Link to="/demo">
-          Open Demo Control Center <ChevronRight size={15} />
-        </Link>
+      </section>
+      <section className="tg-dashboard-summary" aria-label="Public dashboard summary">
+        <div>
+          <span>PUBLIC DASHBOARD</span>
+          <h2>Service delivery at a glance</h2>
+        </div>
+        <div className="tg-stat-grid">
+          <article><b>68,856</b><small>Total Applications Approved</small></article>
+          <article><b>65,109</b><small>Processed within 15 days</small></article>
+          <article><b>3,747</b><small>Processed beyond 15 days</small></article>
+          <article><b>4 days</b><small>Average registration / renewal time</small></article>
+        </div>
       </section>
       <SectionHeading kicker="ONLINE SERVICES" title="Services for every point of verification" />
       <section className="services content-grid">
@@ -956,7 +1018,7 @@ function Apply() {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: 'A. Sharma',
-    business: 'Demo Retail Enterprises',
+    business: 'User Login',
     mobile: '98765 43210',
     email: 'owner@metriq.demo',
     type: 'Electronic Weighing Instrument',
@@ -1359,7 +1421,7 @@ function OwnerDashboard() {
   return (
     <DashboardShell role="owner">
       <DashboardHead
-        title="Welcome, Demo Retail Enterprises"
+        title="Welcome, User Login"
         subtitle="Manage your registered instruments and verification applications."
         actions={
           <>
@@ -1896,7 +1958,7 @@ function FieldDashboard() {
           </div>
           <div>
             <h3>APP-HYD-2026-001245</h3>
-            <p>Electronic Weighing Scale · Demo Retail Enterprises</p>
+            <p>Electronic Weighing Scale · User Login</p>
             <small>
               <MapPin size={14} /> Hyderabad · 10:30 AM
             </small>
@@ -2078,7 +2140,7 @@ function Scan() {
           certificateNumber: certNum,
           instrumentType: 'Electronic Weighing Instrument',
           serialNumber: 'EWS300-98231',
-          owner: 'Demo Retail Enterprises',
+          owner: 'User Login',
           location: 'Hyderabad Circle 1',
           validUntil: '14 Aug 2027',
           status: 'VALID',
@@ -2090,7 +2152,7 @@ function Scan() {
         certificateNumber: certNum,
         instrumentType: 'Electronic Weighing Instrument',
         serialNumber: 'EWS300-98231',
-        owner: 'Demo Retail Enterprises',
+        owner: 'User Login',
         location: 'Hyderabad Circle 1',
         validUntil: '14 Aug 2027',
         status: 'VALID',
@@ -2261,7 +2323,7 @@ function Scan() {
               </h3>
               <p>
                 Serial: <b>{certRecord.serialNumber || certRecord.serial || 'EWS300-98231'}</b> · Owner:{' '}
-                <b>{certRecord.ownerName || certRecord.owner || 'Demo Retail Enterprises'}</b>
+                <b>{certRecord.ownerName || certRecord.owner || 'User Login'}</b>
               </p>
               <p>
                 Valid until: <b>{certRecord.validUntilFormatted || certRecord.validUntil || '14 Aug 2027'}</b> · Status:{' '}
@@ -2505,7 +2567,7 @@ function Verification() {
           certificateData={{
             certificateNumber: 'CERT-HYD-2026-00089',
             instrumentId: applicationId || 'APP-HYD-2026-001245',
-            merchantName: 'Demo Retail Enterprises',
+            merchantName: 'User Login',
             model: 'EWS-300-PLUS Electronic Bench Scale',
             officerName: 'Officer R. Kumar (LMO-HYD-04)',
           }}
@@ -3789,7 +3851,6 @@ export function App() {
             <Route path="/verify/:certificateNumber" element={<Verify />} />
             <Route path="/track" element={<Track />} />
             <Route path="/apply" element={<Apply />} />
-            <Route path="/demo" element={<Demo />} />
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/dashboard/owner" element={protectedRoute('owner', <OwnerDashboard />)} />
             <Route path="/dashboard/owner/*" element={protectedRoute('owner', <OwnerDashboard />)} />
