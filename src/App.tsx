@@ -80,9 +80,9 @@ import './telangana-legal-metrology.css'
 const roleInfo: Record<Role, { label: string; name: string; access: string }> = {
   owner: { label: 'Instrument Owner / User', name: 'User Login', access: 'Citizen instruments and applications' },
   office: { label: 'Back Office Officer', name: 'Officer S. Rao', access: 'Application scrutiny and scheduling' },
-  field: { label: 'LMO Officer', name: 'Officer R. Kumar', access: 'Field verification and offline work' },
+  field: { label: 'LMO Officer/GATC', name: 'Officer R. Kumar / GATC', access: 'Field verification and testing centre' },
   inspection: { label: 'Inspection Officer', name: 'Officer A. Mehta', access: 'Inspection and enforcement' },
-  admin: { label: 'System Administrator', name: 'Telangana Admin', access: 'State administration and reports' },
+  admin: { label: 'State Administration', name: 'Telangana Admin', access: 'State administration and reports' },
 }
 
 const serverRoleToAppRole: Record<string, Role> = {
@@ -99,7 +99,6 @@ const Nav = ({ compact = false, onLogin, currentRole }: { compact?: boolean; onL
   return (
     <nav className={compact ? 'side-nav' : 'main-nav'}>
       <Link to="/">{t('home')}</Link>
-      <Link to="/services">{t('services')}</Link>
       <Link to="/verify">{t('verify')}</Link>
       <Link to="/track">{t('track')}</Link>
       {currentRole ? (
@@ -123,8 +122,7 @@ const Nav = ({ compact = false, onLogin, currentRole }: { compact?: boolean; onL
       ) : (!compact && onLogin && (
         <span className="role-login-links" aria-label="Login options">
           <button onClick={() => onLogin('owner')}>User Login</button>
-          <button onClick={() => onLogin('field')}>LMO Login</button>
-          <button onClick={() => onLogin('admin')}>Admin Login</button>
+          <button onClick={() => onLogin('field')}>LMO Officer/GATC Login</button>
         </span>
       ))}
     </nav>
@@ -453,12 +451,14 @@ function Header({ role, setRole }: { role: Role | null; setRole: (r: Role | null
               <>
                 <b>{t('switchRole')}</b>
                 <small className="login-pop-hint">Select a role to continue to its secure login.</small>
-                {(Object.keys(roleInfo) as Role[]).map((r) => (
-                  <button key={r} onClick={() => setSelectedPersona(r)}>
-                    <span>{roleInfo[r].label}</span>
-                    <ChevronRight size={16} />
-                  </button>
-                ))}
+                {(Object.keys(roleInfo) as Role[])
+                  .filter((r) => r !== 'admin')
+                  .map((r) => (
+                    <button key={r} onClick={() => setSelectedPersona(r)}>
+                      <span>{roleInfo[r].label}</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
               </>
             ) : (
               <form onSubmit={(event) => login(event, selectedPersona)}>
@@ -515,7 +515,7 @@ function Layout({
           </div>
           <div>
             <b>Site Map</b>
-            <span><Link to="/">Home</Link><Link to="/services">Online Services</Link><Link to="/track">Track Application</Link><Link to="/verify">Certificate Verification</Link></span>
+            <span><Link to="/">Home</Link><Link to="/track">Track Application</Link><Link to="/verify">Certificate Verification</Link></span>
           </div>
           <div>
             <b>Reach Us</b>
@@ -1394,7 +1394,7 @@ function DashboardShell({ role, children }: { role: Role; children: React.ReactN
   const labels: Record<Role, string> = {
     owner: 'Citizen Portal',
     office: 'Back Office',
-    field: 'LMO Field Workspace',
+    field: 'LMO Officer/GATC Workspace',
     inspection: 'Inspection & Compliance',
     admin: 'State Administration',
   }
@@ -3653,25 +3653,25 @@ function Demo() {
       path: '/dashboard/office/schedule',
       icon: Users,
       statutoryNeed: 'Transparent duty allocation preventing officer-merchant collusion.',
-      demoAction: 'Assigns LMO Officer R. Kumar with automated date/time slot conflict detection.',
+      demoAction: 'Assigns LMO Officer / GATC with automated date/time slot conflict detection.',
       highlight: 'Calendar conflict detector, workload balancing, and instant mobile notification.',
     },
     {
       num: 4,
       title: 'Mobile Field Testing & Standard Tolerances',
       role: 'field' as Role,
-      roleName: 'Legal Metrology Officer (LMO)',
+      roleName: 'LMO Officer/GATC',
       path: '/dashboard/field/verify/APP-HYD-2026-001245',
       icon: ClipboardCheck,
       statutoryNeed: 'Field measurement accuracy testing with Class III / Class II weights.',
-      demoAction: 'LMO enters observed values at 0kg, 150kg, and 300kg test points with automated error calculation.',
+      demoAction: 'LMO Officer/GATC enters observed values at 0kg, 150kg, and 300kg test points with automated error calculation.',
       highlight: 'Real-time Maximum Permissible Error (MPE) checking. Auto-flags deviations over ±100g.',
     },
     {
       num: 5,
       title: 'Zero-Connectivity Offline Mode',
       role: 'field' as Role,
-      roleName: 'Field LMO Officer',
+      roleName: 'LMO Officer/GATC',
       path: '/dashboard/field',
       icon: WifiOff,
       statutoryNeed: 'Crucial for remote rural mandis, weekly bazaars, and basements without 4G/5G.',
@@ -3682,7 +3682,7 @@ function Demo() {
       num: 6,
       title: 'AI / OCR Optical Plate Recognition',
       role: 'field' as Role,
-      roleName: 'Field LMO Officer',
+      roleName: 'LMO Officer/GATC',
       path: '/dashboard/field/ocr',
       icon: ScanLine,
       statutoryNeed: 'Prevents fraudulent substitution of certified machines with inferior unverified units.',
@@ -3978,16 +3978,18 @@ function Demo() {
                 Instant switch to any actor to simulate multi-party statutory handoffs:
               </p>
               <div className="demo-quick-roles">
-                {(Object.keys(roleInfo) as Role[]).map((r) => (
-                  <button
-                    key={r}
-                    className="outline small"
-                    style={{ fontSize: 11 }}
-                    onClick={() => navigate(`/dashboard/${r}`)}
-                  >
-                    {roleInfo[r].label.split(' / ')[0]}
-                  </button>
-                ))}
+                {(Object.keys(roleInfo) as Role[])
+                  .filter((r) => r !== 'admin')
+                  .map((r) => (
+                    <button
+                      key={r}
+                      className="outline small"
+                      style={{ fontSize: 11 }}
+                      onClick={() => navigate(`/dashboard/${r}`)}
+                    >
+                      {roleInfo[r].label.split(' / ')[0]}
+                    </button>
+                  ))}
               </div>
             </div>
           </div>
